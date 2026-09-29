@@ -74,6 +74,7 @@ MODULE W3DISPMD
   !/
   INTEGER, PARAMETER      :: NAR1D  =  121
   REAL, PARAMETER         :: DFAC   =    6.
+  REAL, PARAMETER         :: SURFACE_TENSION = 0.074
   !/
   INTEGER                 :: N1MAX
   REAL                    :: ECG1(0:NAR1D), EWN1(0:NAR1D), DSIE
@@ -152,7 +153,6 @@ CONTAINS
     !
     !/ ------------------------------------------------------------------- /
     !/
-    USE CONSTANTS, ONLY : GRAV
 #ifdef W3_S
     USE W3SERVMD, ONLY: STRACE
 #endif
@@ -168,11 +168,10 @@ CONTAINS
     !/ ------------------------------------------------------------------- /
     !/ Local parameters
     !/
-    INTEGER                 :: I1, I2
+    INTEGER                 :: ICON
 #ifdef W3_S
     INTEGER, SAVE           :: IENT = 0
 #endif
-    REAL                    :: SQRTH, SIX, R1, R2
     !/
     !/ ------------------------------------------------------------------- /
     !/
@@ -180,20 +179,11 @@ CONTAINS
     CALL STRACE (IENT, 'WAVNU1')
 #endif
     !
-    SQRTH  = SQRT(H)
-    SIX    = SI * SQRTH
-    I1     = INT(SIX/DSIE)
-    !
-    IF (I1.LE.N1MAX.AND.I1.GE.1) THEN
-      I2 = I1 + 1
-      R1 = SIX/DSIE - REAL(I1)
-      R2 = 1. - R1
-      K  = ( R2*EWN1(I1) + R1*EWN1(I2) ) / H
-      CG = ( R2*ECG1(I1) + R1*ECG1(I2) ) * SQRTH
-    ELSE
-      K  = SI*SI/GRAV
-      CG = 0.5 * GRAV / SI
-    END IF
+    ! The gravity-capillary relation does not permit the one-dimensional
+    ! gravity-wave similarity table used historically by WAVNU1.  Solve
+    ! directly so that WN and CG are consistent at all depths and
+    ! frequencies.
+    CALL WAVNU_GC ( SI, H, K, CG, 1.E-7, 50, ICON )
     !
     RETURN
     !/
@@ -248,7 +238,6 @@ CONTAINS
     !
     !/ ------------------------------------------------------------------- /
     !/
-    USE CONSTANTS, ONLY : GRAV
 #ifdef W3_S
     USE W3SERVMD, ONLY: STRACE
 #endif
@@ -266,11 +255,9 @@ CONTAINS
     !/ ------------------------------------------------------------------- /
     !/ Local parameters
     !/
-    INTEGER                 :: I
 #ifdef W3_S
     INTEGER, SAVE           :: IENT = 0
 #endif
-    REAL                    :: F, W0, FD, DIF, RDIF, KOLD
     !REAL                    :: KTEST1, CGTEST1, KTEST2, CGTEST2
     !/
     !/ ------------------------------------------------------------------- /
@@ -284,58 +271,7 @@ CONTAINS
     !CALL WAVNU1(ABS(W),H,KTEST1,CGTEST1)
     !CALL WAVNU3(ABS(W),H,KTEST2,CGTEST2)
 
-    CG   = 0
-    KOLD = 0
-    ICON = 0
-    W0   = ABS(W)
-
-    !
-    !     1st approach :
-    !
-    IF (W0.LT.SQRT(GRAV/H)) THEN
-      K = W0/SQRT(GRAV*H)
-    ELSE
-      K = W0*W0/GRAV
-    END IF
-    !
-    !     Refinement :
-    !
-    DO I=1, NMAX
-      DIF = ABS(K-KOLD)
-      IF (K.NE.0) THEN
-        RDIF = DIF/K
-      ELSE
-        RDIF = 0
-      END IF
-      IF (DIF .LT. EPS .AND. RDIF .LT. EPS) THEN
-        ICON = 1
-        EXIT
-      ELSE
-        KOLD = K
-        F    = GRAV*KOLD*TANH(KOLD*H)-W0**2
-        IF (KOLD*H.GT.25) THEN
-          FD = GRAV*TANH(KOLD*H)
-        ELSE
-          FD = GRAV*TANH(KOLD*H) + GRAV*KOLD*H/((COSH(KOLD*H))**2)
-        END IF
-        K    = KOLD - F/FD
-      END IF
-    END DO
-    !
-    IF (ICON==0) THEN
-      DIF   = ABS(K-KOLD)
-      RDIF  = DIF/K
-      IF (DIF .LT. EPS .AND. RDIF .LT. EPS) ICON = 1
-    END IF
-    IF (2*K*H.GT.25) THEN
-      CG = W0/K * 0.5
-    ELSE
-      CG = W0/K * 0.5*(1+(2*K*H/SINH(2*K*H)))
-    END IF
-    IF (W.LT.0.0) THEN
-      K  = (-1)*K
-      CG = CG*(-1)
-    END IF
+    CALL WAVNU_GC ( W, H, K, CG, EPS, NMAX, ICON )
 
     !WRITE(*,'(20F20.10)') W, H, (K-KTEST2)/K*100., (CG-CGTEST2)/CG*100.
     !
@@ -413,7 +349,6 @@ CONTAINS
     !
     !/ ------------------------------------------------------------------- /
     !/
-    USE CONSTANTS, ONLY : GRAV, PI
     !!/S      USE W3SERVMD, ONLY: STRACE
     !
     IMPLICIT NONE
@@ -428,30 +363,88 @@ CONTAINS
     !/ Local parameters
     !/
     !!/S      INTEGER, SAVE           :: IENT = 0
-    REAL                    :: KH0, KH, TMP, TP
-    REAL, PARAMETER         :: BETA1 = 1.55
-    REAL, PARAMETER         :: BETA2 = 1.3
-    REAL, PARAMETER         :: BETA3 = 0.216
-    REAL, PARAMETER         :: ZPI   = 2 * PI
-    REAL, PARAMETER         :: KDMAX = 20.
+    INTEGER                 :: ICON
     !/
     !/ ------------------------------------------------------------------- /
     !/
     ! IENT does not work with PURE subroutines
     !!/S      CALL STRACE (IENT, 'WAVNU1')
     !
-    TP  = SI/ZPI
-    KH0 = ZPI*ZPI*H/GRAV*TP*TP
-    TMP = 1.55 + 1.3*KH0 + 0.216*KH0*KH0
-    KH  = KH0 * (1 + KH0**1.09 * 1./EXP(MIN(KDMAX,TMP))) / SQRT(TANH(MIN(KDMAX,KH0)))
-    K   = KH/H
-    CG  = 0.5*(1+(2*KH/SINH(MIN(KDMAX,2*KH))))*SI/K
+    CALL WAVNU_GC ( SI, H, K, CG, 1.E-7, 50, ICON )
     !
     RETURN
     !/
     !/ End of WAVNU3 ----------------------------------------------------- /
     !/
   END SUBROUTINE WAVNU3
+
+  PURE SUBROUTINE WAVNU_GC ( W, H, K, CG, EPS, NMAX, ICON )
+    ! Solve sigma^2 = (g k + gamma/rho k^3) tanh(k h) and return
+    ! the corresponding group velocity d sigma / d k.
+    USE CONSTANTS, ONLY : GRAV, DWAT
+    IMPLICIT NONE
+
+    INTEGER, INTENT(IN)     :: NMAX
+    INTEGER, INTENT(OUT)    :: ICON
+    REAL, INTENT(IN)        :: W, H, EPS
+    REAL, INTENT(OUT)       :: K, CG
+
+    INTEGER                 :: I
+    REAL                    :: A, F, FD, KOLD, RDIF, DIF, TKH, SECH2
+
+    A     = SURFACE_TENSION / DWAT
+    ICON  = 0
+    IF ( W .EQ. 0. ) THEN
+      K    = 0.
+      CG   = SQRT(GRAV*H)
+      ICON = 1
+      RETURN
+    END IF
+    KOLD  = 0.
+
+    ! Use the smaller isolated gravity/capillary/depth scales as a
+    ! positive Newton starting value; the Newton residual below is exact.
+    K = MIN ( ABS(W)/SQRT(GRAV*H), W*W/GRAV, (W*W/A)**(1./3.) )
+    K = MAX ( K, 1.E-7 )
+
+    DO I = 1, NMAX
+      KOLD  = K
+      TKH   = TANH(KOLD*H)
+      IF ( KOLD*H .GT. 20. ) THEN
+        SECH2 = 0.
+      ELSE
+        SECH2 = 1. / COSH(KOLD*H)**2
+      END IF
+      F     = (GRAV*KOLD + A*KOLD**3) * TKH - W*W
+      FD    = (GRAV + 3.*A*KOLD**2) * TKH +                    &
+              (GRAV*KOLD + A*KOLD**3) * H * SECH2
+      K     = KOLD - F/FD
+      K     = MAX ( K, 1.E-7 )
+      DIF   = ABS(K-KOLD)
+      RDIF  = DIF / K
+      ! Check the dispersion residual at the UPDATED wavenumber.
+      TKH   = TANH(K*H)
+      F     = (GRAV*K + A*K**3) * TKH - W*W
+      RES   = ABS(F) / MAX(W*W, TINY(1.))
+      IF ( DIF .LT. EPS .AND. RDIF .LT. EPS .AND. RES .LT. EPS ) THEN
+        ICON = 1
+        EXIT
+      END IF
+    END DO
+
+    TKH   = TANH(K*H)
+    IF ( K*H .GT. 20. ) THEN
+      SECH2 = 0.
+    ELSE
+      SECH2 = 1. / COSH(K*H)**2
+    END IF
+    CG    = ((GRAV + 3.*A*K**2) * TKH +                        &
+             (GRAV*K + A*K**3) * H * SECH2) / (2.*ABS(W))
+    IF ( W .LT. 0. ) THEN
+      K  = -K
+      CG = -CG
+    END IF
+  END SUBROUTINE WAVNU_GC
 
   PURE SUBROUTINE WAVNU_LOCAL (SIG,DW,WNL,CGL)
     !/
