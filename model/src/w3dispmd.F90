@@ -390,7 +390,7 @@ CONTAINS
     REAL, INTENT(OUT)       :: K, CG
 
     INTEGER                 :: I
-    REAL                    :: A, F, FD, KOLD, RDIF, DIF, TKH, SECH2
+    REAL                    :: A, F, FD, KOLD, RDIF, DIF, TKH, SECH2, RES
 
     A     = SURFACE_TENSION / DWAT
     ICON  = 0
