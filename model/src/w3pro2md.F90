@@ -1477,8 +1477,8 @@ CONTAINS
     !
     DO IK=0, NK+1
       IF ( DEPTH*WN(IK) .LT. 5. ) THEN
-        DSDD(IK) = MAX ( 0. ,                                     &
-             CG(IK)*WN(IK)-0.5*SIG(IK) ) / DEPTH
+        DSDD(IK) = ((GRAV*WN(IK) + (0.074/DWAT)*WN(IK)**3) *      &
+             WN(IK) / (2.*SIG(IK))) / COSH(WN(IK)*DEPTH)**2
       ELSE
         DSDD(IK) = 0.
       END IF
