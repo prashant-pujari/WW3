@@ -493,8 +493,8 @@ CONTAINS
     ITH    = 1 + MOD(ISP-1,NTH)
     IK     = 1 + (ISP-1)/NTH
     !
-    CG0    = 0.575 * GRAV / SIG(1)
-    CGL    = 0.575 * GRAV / SIG(IK)
+    CG0    = 1.15 * MAXVAL(CG(1,1:NSEA))
+    CGL    = 1.15 * MAXVAL(CG(IK,1:NSEA))
     !
     IF ( FLCUR ) THEN
       CGA    = SQRT(MAXVAL((CGL*ECOS(ITH)+CX(1:NSEA))**2          &

@@ -673,6 +673,7 @@ CONTAINS
     USE CONSTANTS
     !
     USE W3TIMEMD, ONLY: DSEC21
+    USE W3DISPMD, ONLY: WAVNU_DEEP_GC
     !
     USE W3GDATMD, ONLY: NK, NTH, DTH, XFR, ESIN, ECOS, SIG, NX, NY, &
          NSEA, SX, SY, MAPSF, ICLOSE, FLCX, FLCY,    &
@@ -709,7 +710,7 @@ CONTAINS
     !/ ------------------------------------------------------------------- /
     !/ Local parameters
     !/
-    INTEGER                 :: ITH, IK, NTLOC, ITLOC, ISEA, IXY,    &
+    INTEGER                 :: ITH, IK, NTLOC, ITLOC, ISEA, IXY, ICON, &
          IX,IY, IY0, IP, IBI
     INTEGER                 :: TTEST(2),DTTST
 #ifdef W3_S
@@ -718,7 +719,7 @@ CONTAINS
     REAL                    :: CG0, CGA, CGN, CGX, CGY, CXC, CYC,  &
          CXMIN, CXMAX, CYMIN, CYMAX
     REAL                    :: DTLOC, DTRAD,               &
-         DFRR, CELLP,  CGD, DSSD,    &
+         DFRR, CELLP,  CGD, KINF, DSSD,    &
          DNND, DCELL, XWIND, TFAC, DSS, DNN
     REAL                    :: RD1, RD2
     REAL                    :: RFAC, DFAC, DVQ, QXX, QXY, QYY
@@ -771,8 +772,8 @@ CONTAINS
     ITH    = 1 + MOD(ISP-1,NTH)
     IK     = 1 + (ISP-1)/NTH
     !
-    CG0    = 0.575 * GRAV / SIG(1)
-    CGA    = 0.575 * GRAV / SIG(IK)
+    CG0    = 1.15 * MAXVAL(CG(1,1:NSEA))
+    CGA    = 1.15 * MAXVAL(CG(IK,1:NSEA))
     CGX    = CGA * ECOS(ITH)
     CGY    = CGA * ESIN(ITH)
 #ifdef W3_MGP
@@ -838,7 +839,7 @@ CONTAINS
     IF ( DTME .NE. 0. ) THEN
       DFRR   = XFR - 1.
       CELLP  = 10.
-      CGD    = 0.5 * GRAV / SIG(IK)
+      CALL WAVNU_DEEP_GC ( SIG(IK), KINF, CGD, 1.E-7, 50, ICON )
       DSSD   = ( DFRR * CGD )**2 * DTME / 12.
       DNND   = ( CGD * DTH )**2 * DTME / 12.
 #ifdef W3_T

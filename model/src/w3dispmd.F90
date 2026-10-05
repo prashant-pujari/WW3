@@ -446,6 +446,58 @@ CONTAINS
     END IF
   END SUBROUTINE WAVNU_GC
 
+  PURE SUBROUTINE WAVNU_DEEP_GC ( W, K, CG, EPS, NMAX, ICON )
+    ! Solve sigma^2 = g k + gamma/rho k^3 in deep water and return
+    ! the corresponding group velocity d sigma / d k.
+    USE CONSTANTS, ONLY : GRAV, DWAT
+    IMPLICIT NONE
+
+    INTEGER, INTENT(IN)     :: NMAX
+    INTEGER, INTENT(OUT)    :: ICON
+    REAL, INTENT(IN)        :: W, EPS
+    REAL, INTENT(OUT)       :: K, CG
+
+    INTEGER                 :: I
+    REAL                    :: A, F, FD, KOLD, RDIF, DIF, RES
+
+    A     = SURFACE_TENSION / DWAT
+    ICON  = 0
+    IF ( W .EQ. 0. ) THEN
+      K    = 0.
+      CG   = 0.
+      ICON = 1
+      RETURN
+    END IF
+
+    K = MIN ( W*W/GRAV, (W*W/A)**(1./3.) )
+    K = MAX ( K, 1.E-7 )
+
+    DO I = 1, NMAX
+      KOLD = K
+      F    = GRAV*KOLD + A*KOLD**3 - W*W
+      FD   = GRAV + 3.*A*KOLD**2
+      K    = KOLD - F/FD
+      K    = MAX ( K, 1.E-7 )
+      DIF  = ABS(K-KOLD)
+      RDIF = DIF/K
+
+    ! Check residual at the updated wavenumber.
+      F    = GRAV*K + A*K**3 - W*W
+      RES  = ABS(F) / MAX(W*W, TINY(1.))
+
+      IF ( DIF .LT. EPS .AND. RDIF .LT. EPS .AND. RES .LT. EPS ) THEN
+        ICON = 1
+        EXIT
+      END IF
+    END DO
+
+    CG = (GRAV + 3.*A*K**2) / (2.*ABS(W))
+    IF ( W .LT. 0. ) THEN
+      K  = -K
+      CG = -CG
+    END IF
+  END SUBROUTINE WAVNU_DEEP_GC
+
   PURE SUBROUTINE WAVNU_LOCAL (SIG,DW,WNL,CGL)
     !/
     !/                  +-----------------------------------+

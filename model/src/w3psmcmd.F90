@@ -247,6 +247,7 @@ CONTAINS
     USE CONSTANTS
     !
     USE W3TIMEMD, ONLY: DSEC21
+    USE W3DISPMD, ONLY: WAVNU_DEEP_GC
     !
     USE W3GDATMD, ONLY: NK, NTH, DTH, XFR, ESIN, ECOS, SIG, NX, NY,  &
          NSEA, SX, SY, MAPSF, FUNO3, FVERG,           &
@@ -279,7 +280,7 @@ CONTAINS
     !/ ------------------------------------------------------------------- /
     !/ Local parameters
     !/
-    INTEGER                 :: ITH, IK, NTLOC, ITLOC, ISEA, IXY,    &
+    INTEGER                 :: ITH, IK, NTLOC, ITLOC, ISEA, IXY, ICON, &
          IY, IY0, IP, IBI, LvR
     INTEGER                 :: i, j, k, L, M, N, LL, MM, NN, LMN,   &
          iuf, juf, ivf, jvf, icl, jcl
@@ -290,7 +291,7 @@ CONTAINS
          RD2, CXMIN, CXMAX, CYMIN, CYMAX,     &
          CXC, CYC, DTLDX, DTLDY
     REAL                    :: DTLOC, CGCOS, CGSIN, FUTRN, FVTRN,   &
-         DFRR, DX0I, DY0I, CGD, DSSD,         &
+         DFRR, DX0I, DY0I, CGD, KINF, DSSD,   &
          DNND, DCELL, XWIND, TFAC, DSS, DNN
     REAL                    :: PCArea, ARCTH
     LOGICAL                 :: YFIRST
@@ -316,8 +317,8 @@ CONTAINS
 
     !!Li  Maximum group speed for 1st and the transported frequency bin
     !!Li  A factor of 1.2 is added to account for the shallow water peak.
-    CG0    = 0.6 * GRAV / SIG(1)
-    CGA    = 0.6 * GRAV / SIG(IK)
+    CG0    = 1.2 * MAXVAL(CG(1,1:NSEA))
+    CGA    = 1.2 * MAXVAL(CG(IK,1:NSEA))
 
     !!Li  Maximum group speed for given spectral bin. First bin speed is
     !!Li  used to avoid zero speed component.
@@ -379,7 +380,7 @@ CONTAINS
     !Li   the sub-time step DTLOC/MRFct.
     IF ( DTMS .GT. 0. ) THEN
       DFRR   = XFR - 1.
-      CGD    = 0.5 * GRAV / SIG(IK)
+      CALL WAVNU_DEEP_GC ( SIG(IK), KINF, CGD, 1.E-7, 50, ICON )
       DNN    = ((DTH*CGD)**2)*DTMS / 12.
       DNND   = DNN*DTLOC*(DX0I*DX0I)
       DSSD   = DNN*DTLOC*(DY0I*DY0I)
