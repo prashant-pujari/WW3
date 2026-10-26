@@ -679,6 +679,9 @@ CONTAINS
     USE W3SWLDMD, ONLY : W3SWL6
     USE W3GDATMD, ONLY : SWL6S6
 #endif
+#ifdef W3_STGC
+    USE W3SRCGCMD, ONLY : W3SPRGC, W3SINGC, W3SDSGC
+#endif
 #ifdef W3_NL1
     USE W3SNL1MD
 #endif
@@ -769,7 +772,7 @@ CONTAINS
     REAL                    :: FMEANWS, TAUWX, TAUWY, AMAX, &
          TAUWNX, TAUWNY,  FMEAN1, WHITECAP(1:4), DLWMEAN
 #endif
-#ifdef W3_ST6
+#if defined(W3_ST6) || defined(W3_STGC)
     REAL                    :: AMAX, TAUWX, TAUWY, TAUWNX, TAUWNY
 #endif
 #ifdef W3_BS1
@@ -1050,7 +1053,7 @@ CONTAINS
         TAUWX  = 0.
         TAUWY  = 0.
 #endif
-#ifdef W3_ST6
+#if defined(W3_ST6) || defined(W3_STGC)
         ZWND   = 10.
 #endif
         !
@@ -1084,6 +1087,10 @@ CONTAINS
 #endif
 #ifdef W3_ST6
         CALL W3SPR6 (A, CG, WN, EMEAN, FMEAN, WNMEAN, AMAX, FP)
+#endif
+#ifdef W3_STGC
+        CALL W3SPRGC (A, CG, WN, EMEAN, FMEAN, WNMEAN, AMAX, FP)
+        FHIGH = SIG(NK)
 #endif
         !
 #ifdef W3_FLX1
@@ -1176,6 +1183,10 @@ CONTAINS
           CALL W3SIN6 (A, CG, WN2, UABS, USTAR, UDIRR, CD, &
                DAIR, TAUWX, TAUWY, TAUWNX, TAUWNY, CHARN, XWI, DIA )
 #endif
+#ifdef W3_STGC
+          CALL W3SINGC (A, CG, WN2, UABS, USTAR, UDIRR, CD, &
+               DAIR, TAUWX, TAUWY, TAUWNX, TAUWNY, CHARN, XWI, DIA )
+#endif
         END IF
         IF ( FLSRCE(3) ) THEN
 #ifdef W3_NL1
@@ -1209,6 +1220,9 @@ CONTAINS
 #ifdef W3_ST6
           CALL W3SDS6 ( A, CG, WN,            XDS, DIA )
           IF (SWL6S6) CALL W3SWL6 ( A, CG, WN,  XWL, DIA )
+#endif
+#ifdef W3_STGC
+          CALL W3SDSGC ( A, CG, WN,            XDS, DIA )
 #endif
           !
 #ifdef W3_DB1

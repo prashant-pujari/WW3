@@ -575,6 +575,9 @@ CONTAINS
     USE W3SWLDMD, ONLY : W3SWL6
     USE W3GDATMD, ONLY : SWL6S6
 #endif
+#ifdef W3_STGC
+    USE W3SRCGCMD, ONLY : W3SPRGC, W3SINGC, W3SDSGC
+#endif
 #ifdef W3_NL1
     USE W3SNL1MD
     USE W3GDATMD, ONLY: IQTPE
@@ -725,7 +728,7 @@ CONTAINS
 
     REAL, SAVE :: TAUNUX, TAUNUY
 
-#if defined(W3_OMPG) || defined(W3_T) || defined(W3_ST1) || defined(W3_ST2) || defined(W3_ST3) || defined(W3_ST6)
+#if defined(W3_OMPG) || defined(W3_T) || defined(W3_ST1) || defined(W3_ST2) || defined(W3_ST3) || defined(W3_ST6) || defined(W3_STGC)
     LOGICAL, SAVE :: FLTEST = .FALSE.
 #endif
 
@@ -743,7 +746,7 @@ CONTAINS
     INTEGER :: ISP
 #endif
 
-#if defined(W3_ST0) || defined(W3_ST1) || defined(W3_ST2) || defined(W3_ST6) || defined(W3_FLX2) || defined(W3_FLX3)
+#if defined(W3_ST0) || defined(W3_ST1) || defined(W3_ST2) || defined(W3_ST6) || defined(W3_STGC) || defined(W3_FLX2) || defined(W3_FLX3)
     REAL :: FP
 #endif
     !/
@@ -885,7 +888,7 @@ CONTAINS
     VSLN = 0.
 #endif
 
-#if defined(W3_ST0) || defined(W3_ST3) || defined(W3_ST4)
+#if defined(W3_ST0) || defined(W3_ST3) || defined(W3_ST4) || defined(W3_STGC)
     VSIN = 0.
     VDIN = 0.
 #endif
@@ -900,7 +903,7 @@ CONTAINS
     VDTR = 0.
 #endif
 
-#if defined(W3_ST0) || defined(W3_ST4)
+#if defined(W3_ST0) || defined(W3_ST4) || defined(W3_STGC)
     VSDS = 0.
     VDDS = 0.
 #endif
@@ -934,7 +937,7 @@ CONTAINS
     VDWL = 0.
 #endif
 
-#if defined(W3_ST0) || defined(W3_ST1) || defined(W3_ST6)
+#if defined(W3_ST0) || defined(W3_ST1) || defined(W3_ST6) || defined(W3_STGC)
     ZWND = 10.
 #endif
 
@@ -1128,6 +1131,9 @@ CONTAINS
 #ifdef W3_ST6
     CALL W3SPR6 (SPEC, CG1, WN1, EMEAN, FMEAN, WNMEAN, AMAX, FP)
 #endif
+#ifdef W3_STGC
+    CALL W3SPRGC (SPEC, CG1, WN1, EMEAN, FMEAN, WNMEAN, AMAX, FP)
+#endif
     !
     ! 1.c2 Stores the initial data
     !
@@ -1184,6 +1190,9 @@ CONTAINS
     ELSE
       FHIGH  = MAX (FXFM * FMEAN, FXPM / USTAR)
     ENDIF
+#endif
+#ifdef W3_STGC
+    FHIGH = SIG(NK)
 #endif
     !
     ! 1.f Prepare output file for !/NNT option
@@ -1252,6 +1261,10 @@ CONTAINS
       CALL W3SIN6 ( SPEC, CG1, WN2, U10ABS, USTAR, USTDIR, CD, DAIR, &
            TAUWX, TAUWY, TAUWAX, TAUWAY, CHARN, VSIN, VDIN )
 #endif
+#ifdef W3_STGC
+      CALL W3SINGC ( SPEC, CG1, WN2, U10ABS, USTAR, USTDIR, CD, DAIR, &
+           TAUWX, TAUWY, TAUWAX, TAUWAY, CHARN, VSIN, VDIN )
+#endif
       !
       ! 2.b Nonlinear interactions.
       !
@@ -1312,6 +1325,9 @@ CONTAINS
 
 #ifdef W3_ST6
       CALL W3SDS6 ( SPEC, CG1, WN1,                   VSDS, VDDS )
+#endif
+#ifdef W3_STGC
+      CALL W3SDSGC ( SPEC, CG1, WN1,                   VSDS, VDDS )
 #endif
       !
 #ifdef W3_PDLIB
@@ -1885,6 +1901,9 @@ CONTAINS
 #endif
 #ifdef W3_ST6
       CALL W3SPR6 (SPEC, CG1, WN1, EMEAN, FMEAN, WNMEAN, AMAX, FP)
+#endif
+#ifdef W3_STGC
+      CALL W3SPRGC (SPEC, CG1, WN1, EMEAN, FMEAN, WNMEAN, AMAX, FP)
 #endif
       !
 #ifdef W3_FLX2

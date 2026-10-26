@@ -1452,6 +1452,9 @@ CONTAINS
     NRSRCE = NRSRCE + 1
     FLST6  = .TRUE.
 #endif
+#ifdef W3_STGC
+    NRSRCE = NRSRCE + 1
+#endif
     !
 #ifdef W3_NL0
     NRNL   = NRNL + 1

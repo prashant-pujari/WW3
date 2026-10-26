@@ -257,6 +257,11 @@
                 "name": "ST6",
                 "build_files": ["w3src6md.F90", "w3swldmd.F90"],
                 "conflicts": ["FLX0"]
+            },
+            {
+                "name": "STGC",
+                "build_files": ["w3srcgcmd.F90"],
+                "conflicts": ["FLX0"]
             }
         ]
     },

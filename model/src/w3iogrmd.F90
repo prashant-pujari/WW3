@@ -438,6 +438,9 @@ CONTAINS
 #ifdef W3_ST6
     TNAME1 = 'BYDB input and dissipation    '
 #endif
+#ifdef W3_STGC
+    TNAME1 = 'Gravity-capillary source terms '
+#endif
 #ifdef W3_NL0
     TNAME2 = 'Not defined                   '
 #endif

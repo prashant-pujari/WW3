@@ -167,6 +167,7 @@
                                    touch gx_outp.F90 ;;
      'sterm'  ) cd $main_dir/src ; touch w3gdatmd.F90
                                    touch w3srcemd.F90
+                                   touch w3srcgcmd.F90
                                    touch w3flx1md.F90
                                    touch w3flx2md.F90
                                    touch w3flx3md.F90

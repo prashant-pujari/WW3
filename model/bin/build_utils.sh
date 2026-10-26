@@ -112,7 +112,7 @@ check_switches()
 #sort:sterm:
       sterm  ) TY='one'
                ID='input/whitecapping'
-               OK='ST0 ST1 ST2 ST3 ST4 ST6' ;;
+               OK='ST0 ST1 ST2 ST3 ST4 ST6 STGC' ;;
 #sort:stab:
       stab   ) TY='upto1'
                ID='stability correction'
@@ -446,12 +446,12 @@ check_switches()
 # 1.b Check switch compatibility
 
   case $stress in
-   FLX0) str_st1='no' ; str_st2='no' ; str_st3='OK' ; str_st6='no' ;;
-   FLX1) str_st1='OK' ; str_st2='no' ; str_st3='no' ; str_st6='OK' ;;
-   FLX2) str_st1='OK' ; str_st2='OK' ; str_st3='no' ; str_st6='OK' ;;
-   FLX3) str_st1='OK' ; str_st2='OK' ; str_st3='no' ; str_st6='OK' ;;
-   FLX4) str_st1='OK' ; str_st2='no' ; str_st3='no' ; str_st6='OK' ;;
-   FLX5) str_st1='no' ; str_st2='no' ; str_st3='yes' ; str_st6='OK' ;;
+   FLX0) str_st1='no' ; str_st2='no' ; str_st3='OK' ; str_st6='no' ; str_stgc='no' ;;
+   FLX1) str_st1='OK' ; str_st2='no' ; str_st3='no' ; str_st6='OK' ; str_stgc='OK' ;;
+   FLX2) str_st1='OK' ; str_st2='OK' ; str_st3='no' ; str_st6='OK' ; str_stgc='OK' ;;
+   FLX3) str_st1='OK' ; str_st2='OK' ; str_st3='no' ; str_st6='OK' ; str_stgc='OK' ;;
+   FLX4) str_st1='OK' ; str_st2='no' ; str_st3='no' ; str_st6='OK' ; str_stgc='OK' ;;
+   FLX5) str_st1='no' ; str_st2='no' ; str_st3='yes' ; str_st6='OK' ; str_stgc='OK' ;;
   esac
 
   if [ -n "$thread2" ] && [ "$thread1" != 'OMPG' ]
@@ -528,6 +528,13 @@ check_switches()
       echo "   *** !/ST6 cannot be used in combination with !/$stress"
       echo "       Choose from FLX1, FLX2, FLX3, or FLX4 or FLX5."
       echo ' ' ; exit 14
+  fi
+  if [ "$s_inds" = 'STGC' ] && [ "$str_stgc" = 'no' ]
+  then
+      echo ' '
+      echo "   *** !/STGC cannot be used in combination with !/$stress"
+      echo "       Choose from FLX1, FLX2, FLX3, FLX4, or FLX5."
+      echo ' ' ; exit 15
   fi
 
   if [ -n "$thread1" ] && [ "$s_nl" = 'NL2' ]
@@ -649,6 +656,8 @@ switch_files()
         stx='w3src4md' ;;
    ST6) st='w3src6md w3swldmd'
         stx='w3src6md' ;;
+   STGC) st='w3srcgcmd'
+         stx='w3srcgcmd' ;;
   esac
 
   case $s_nl in
