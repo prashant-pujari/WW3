@@ -2,7 +2,7 @@
 !> @brief Source-term package for short gravity-capillary waves.
 !>
 !> @author P. Pujari
-!> @date   06-Nov-2026
+!> @date   11-Nov-2026
 !>
 
 #include "w3macros.h"
@@ -26,11 +26,12 @@ MODULE W3SRCGCMD
   !/                  | WAVEWATCH III      NOAA/NCEP/NOPP |
   !/                  |           P. Pujari               |                  |
   !/                  |                        FORTRAN 90 |
-  !/                  | Last update :         06-Nov-2026 |
+  !/                  | Last update :         11-Nov-2026 |
   !/                  +-----------------------------------+
   !/
-  !/    26-Oct-2026 : Origination of STGC source package (w3srcgcmd.F90)         (P. Pujari) 
-  !/    06-Nov-2026 : Add molecular viscous dissipation.                         (P. Pujari) 
+  !/    26-Oct-2026 : Origination of STGC source package (w3srcgcmd.F90)         (P. Pujari)
+  !/    06-Nov-2026 : Update STGC documentation and source-package header        (P. Pujari)
+  !/    11-Nov-2026 : Add molecular viscous dissipation.                         (P. Pujari)
   !/
   !/    Copyright 2009 National Weather Service (NWS),
   !/       National Oceanic and Atmospheric Administration.  All rights
@@ -67,7 +68,8 @@ MODULE W3SRCGCMD
   !
   !  2. Variables and types :
   !
-  !      To be defined as individual source terms are implemented.
+  !      Molecular viscous dissipation is implemented in W3SDSGC.
+  !      Additional source-term variables will be documented as they are added.
   !
   !  3. Subroutines and functions :
   !
@@ -158,18 +160,37 @@ CONTAINS
 
   END SUBROUTINE W3SINGC
 
-  !> @brief Return zero placeholder dissipation and diagonal derivative.
+  !> @brief Calculate molecular viscous dissipation and diagonal derivative.
+  !> @details Implements S_visc = -4 nu k**2 A using the local wavenumber.
   SUBROUTINE W3SDSGC (A, CG, WN, S, D)
 
-    USE W3GDATMD, ONLY: NK, NSPEC
+    USE W3GDATMD, ONLY: NK, NTH, NSPEC
 
     IMPLICIT NONE
 
     REAL, INTENT(IN)  :: A(NSPEC), CG(NK), WN(NK)
     REAL, INTENT(OUT) :: S(NSPEC), D(NSPEC)
 
+    INTEGER :: IK, ITH, IS
+    REAL, PARAMETER :: NUWATER = 1.0035E-6
+    REAL :: DVISC(NK), SVISC(NSPEC)
+
+    ! Molecular viscous dissipation: D_visc = -4 nu k**2.
+    DVISC = -4.0 * NUWATER * WN**2
+
+    ! Apply the frequency-dependent coefficient to every direction.
+    D     = 0.0
+    SVISC = 0.0
+    DO IK = 1, NK
+      DO ITH = 1, NTH
+        IS = ITH + (IK-1) * NTH
+        D(IS)     = D(IS) + DVISC(IK)
+        SVISC(IS) = DVISC(IK) * A(IS)
+      END DO
+    END DO
+
     S = 0.0
-    D = 0.0
+    S = S + SVISC
 
   END SUBROUTINE W3SDSGC
 
