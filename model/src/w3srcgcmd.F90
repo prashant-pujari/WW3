@@ -18,13 +18,13 @@
 !>  interactions are handled separately from this package.
 !>
 !> @author P. Pujari
-!> @date   06-Nov-2026
+!> @date   11-Nov-2026
 !>
 MODULE W3SRCGCMD
   !/
   !/                  +-----------------------------------+
   !/                  | WAVEWATCH III      NOAA/NCEP/NOPP |
-  !/                  |           P. Pujari               |                  |
+  !/                  |           P. Pujari               |                  
   !/                  |                        FORTRAN 90 |
   !/                  | Last update :         11-Nov-2026 |
   !/                  +-----------------------------------+
