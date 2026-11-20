@@ -2,7 +2,7 @@
 !> @brief Source-term package for short gravity-capillary waves.
 !>
 !> @author P. Pujari
-!> @date   11-Nov-2026
+!> @date   20-Nov-2026
 !>
 
 #include "w3macros.h"
@@ -18,7 +18,7 @@
 !>  interactions are handled separately from this package.
 !>
 !> @author P. Pujari
-!> @date   11-Nov-2026
+!> @date   20-Nov-2026
 !>
 MODULE W3SRCGCMD
   !/
@@ -26,12 +26,13 @@ MODULE W3SRCGCMD
   !/                  | WAVEWATCH III      NOAA/NCEP/NOPP |
   !/                  |           P. Pujari               |                  
   !/                  |                        FORTRAN 90 |
-  !/                  | Last update :         11-Nov-2026 |
+  !/                  | Last update :         20-Nov-2026 |
   !/                  +-----------------------------------+
   !/
   !/    26-Oct-2026 : Origination of STGC source package (w3srcgcmd.F90)         (P. Pujari)
   !/    06-Nov-2026 : Update STGC documentation and source-package header        (P. Pujari)
   !/    11-Nov-2026 : Add molecular viscous dissipation.                         (P. Pujari)
+  !/    20-Nov-2026 : Add short-gravity wave-breaking dissipation.               (P. Pujari)
   !/
   !/    Copyright 2009 National Weather Service (NWS),
   !/       National Oceanic and Atmospheric Administration.  All rights
@@ -68,8 +69,8 @@ MODULE W3SRCGCMD
   !
   !  2. Variables and types :
   !
-  !      Molecular viscous dissipation is implemented in W3SDSGC.
-  !      Additional source-term variables will be documented as they are added.
+  !      Molecular viscous and short-gravity wave-breaking dissipation
+  !      are implemented in W3SDSGC.
   !
   !  3. Subroutines and functions :
   !
@@ -160,10 +161,13 @@ CONTAINS
 
   END SUBROUTINE W3SINGC
 
-  !> @brief Calculate molecular viscous dissipation and diagonal derivative.
-  !> @details Implements S_visc = -4 nu k**2 A using the local wavenumber.
+  !> @brief Calculate molecular viscous and short-gravity breaking dissipation.
+  !> @details Implements S_visc = -4 nu k**2 A and the Kudryavtsev et al.
+  !>  (1999) short-gravity breaking source using the local wavenumber.
   SUBROUTINE W3SDSGC (A, CG, WN, S, D)
 
+    USE CONSTANTS, ONLY: GRAV, DWAT
+    USE W3DISPMD, ONLY: SURFACE_TENSION
     USE W3GDATMD, ONLY: NK, NTH, NSPEC
 
     IMPLICIT NONE
@@ -173,24 +177,36 @@ CONTAINS
 
     INTEGER :: IK, ITH, IS
     REAL, PARAMETER :: NUWATER = 1.0035E-6
-    REAL :: DVISC(NK), SVISC(NSPEC)
+    REAL, PARAMETER :: NG = 2.0, ALPHAG = 0.03
+    REAL :: KGAMMA, KBREAK, BREAKCOEF
+    REAL :: DVISC(NK), SVISC(NSPEC), SBREAK(NSPEC), DBREAK(NSPEC)
 
     ! Molecular viscous dissipation: D_visc = -4 nu k**2.
     DVISC = -4.0 * NUWATER * WN**2
 
+    ! Short-gravity breaking range and dissipation parameters.
+    KGAMMA = SQRT(DWAT * GRAV / SURFACE_TENSION)
+    KBREAK = 0.25 * KGAMMA
+
     ! Apply the frequency-dependent coefficient to every direction.
     D     = 0.0
     SVISC = 0.0
+    SBREAK = 0.0
+    DBREAK = 0.0
     DO IK = 1, NK
       DO ITH = 1, NTH
         IS = ITH + (IK-1) * NTH
-        D(IS)     = D(IS) + DVISC(IK)
         SVISC(IS) = DVISC(IK) * A(IS)
+        IF (WN(IK) .LT. KBREAK .AND. A(IS) .GT. 0.0) THEN
+          BREAKCOEF = GRAV**1.5 / ALPHAG**NG * WN(IK)**(3.0*NG + 1.5)
+          SBREAK(IS) = -BREAKCOEF * A(IS)**(NG + 1.0)
+          DBREAK(IS) = -(NG + 1.0) * BREAKCOEF * A(IS)**NG
+        END IF
+        D(IS) = DVISC(IK) + DBREAK(IS)
       END DO
     END DO
 
-    S = 0.0
-    S = S + SVISC
+    S = SVISC + SBREAK
 
   END SUBROUTINE W3SDSGC
 
