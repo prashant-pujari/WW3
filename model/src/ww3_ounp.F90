@@ -2430,7 +2430,7 @@ CONTAINS
                    TAUWX, TAUWY, TAUWNX, TAUWNY, CHARN, XIN, DIA )
 #endif
 #ifdef W3_STGC
-              CALL W3SINGC (A, CG, WN2, UABS, USTAR, UDIRR, CD, DAIR, &
+              CALL W3SINGC (A, CG, WN2, UABS, USTAR, UDIRR, Z0, CD, DAIR, &
                    TAUWX, TAUWY, TAUWNX, TAUWNY, CHARN, XIN, DIA )
 #endif
             END IF

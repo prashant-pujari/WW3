@@ -1184,7 +1184,7 @@ CONTAINS
                DAIR, TAUWX, TAUWY, TAUWNX, TAUWNY, CHARN, XWI, DIA )
 #endif
 #ifdef W3_STGC
-          CALL W3SINGC (A, CG, WN2, UABS, USTAR, UDIRR, CD, &
+          CALL W3SINGC (A, CG, WN2, UABS, USTAR, UDIRR, Z0, CD, &
                DAIR, TAUWX, TAUWY, TAUWNX, TAUWNY, CHARN, XWI, DIA )
 #endif
         END IF
