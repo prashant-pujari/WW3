@@ -2,7 +2,7 @@
 !> @brief Source-term package for short gravity-capillary waves.
 !>
 !> @author P. Pujari
-!> @date   24-Nov-2026
+!> @date   26-Nov-2026
 !>
 
 #include "w3macros.h"
@@ -18,7 +18,7 @@
 !>  interactions are handled separately from this package.
 !>
 !> @author P. Pujari
-!> @date   24-Nov-2026
+!> @date   26-Nov-2026
 !>
 MODULE W3SRCGCMD
   !/
@@ -26,7 +26,7 @@ MODULE W3SRCGCMD
   !/                  | WAVEWATCH III      NOAA/NCEP/NOPP |
   !/                  |           P. Pujari               |                  
   !/                  |                        FORTRAN 90 |
-  !/                  | Last update :         24-Nov-2026 |
+  !/                  | Last update :         26-Nov-2026 |
   !/                  +-----------------------------------+
   !/
   !/    26-Oct-2026 : Origination of STGC source package (w3srcgcmd.F90)         (P. Pujari)
@@ -34,6 +34,7 @@ MODULE W3SRCGCMD
   !/    11-Nov-2026 : Add molecular viscous dissipation.                         (P. Pujari)
   !/    20-Nov-2026 : Add short-gravity wave-breaking dissipation.               (P. Pujari)
   !/    24-Nov-2026 : Add breaker-generated freely propagating short-wave input. (P. Pujari)
+  !/    26-Nov-2026 : Add direct wind input for short gravity waves.             (P. Pujari)
   !/
   !/    Copyright 2009 National Weather Service (NWS),
   !/       National Oceanic and Atmospheric Administration.  All rights
@@ -70,10 +71,15 @@ MODULE W3SRCGCMD
   !
   !  2. Variables and types :
   !
-  !      W3SINGC implements the Yurovskaya et al. (2013) breaker-generated
-  !      freely propagating short-wave input. Parent-wave growth follows the
-  !      Kudryavtsev et al. (2005) beta formulation using U10DIR and the source is isotropic in
-  !      target direction.
+  !      W3SINGC implements the Kudryavtsev et al. (2005) direct
+  !      wind-input source for k < k_gamma. The wind-growth rate uses
+  !      USTAR, Z0, DAIR and the actual wind direction U10DIR.
+  !
+  !      W3SINGC also implements the Yurovskaya et al. (2013)
+  !      breaker-generated freely propagating short-wave input.
+  !      Parent-wave growth follows the Kudryavtsev et al. (2005)
+  !      beta formulation using U10DIR, and the generated source is
+  !      isotropic in target direction.
   !
   !      Molecular viscous and short-gravity wave-breaking dissipation are
   !      implemented in W3SDSGC.
@@ -146,10 +152,11 @@ CONTAINS
 
   END SUBROUTINE W3SPRGC
 
-  !> @brief Calculate breaker-generated freely propagating short-wave input.
-  !> @details Uses the Yurovskaya et al. (2013) nonlocal generation source.
+  !> @brief Calculate direct wind and breaker-generated short-wave input.
+  !> @details Direct Kudryavtsev et al. (2005) wind input applies for k < k_gamma. The Yurovskaya
+  !>  et al. (2013) nonlocal generation source uses the same wind growth rate, beta.
   !>  Parent waves satisfy k_j < min(k_i/10,k_b), where k_b=k_gamma/4.
-  !>  The K2005 beta uses the actual wind direction WINDDIR=U10DIR. The parent
+  !>  The Kudryavtsev et al. (2005) beta uses the actual wind direction WINDDIR=U10DIR. The parent
   !>  integral is applied identically to every target direction, and D_bgen=0.
   SUBROUTINE W3SINGC (A, CG, WN2, UABS, USTAR, WINDDIR, Z0, CD, DAIR, &
        TAUWX, TAUWY, TAUNWX, TAUNWY, CHARN, S, D)
@@ -166,7 +173,7 @@ CONTAINS
     INTEGER :: IK, JK, ITH, IS, IST
     REAL, PARAMETER :: CBGEN = 4.5E-3
     REAL :: KGAMMA, KBREAK, KI, KJ, KBM, CJ, COSPHI, CBETA, BETA, BGENINT
-    REAL :: SBGEN(NSPEC)
+    REAL :: SWIND(NSPEC), DWIND(NSPEC), SBGEN(NSPEC)
 
     ! Yurovskaya et al. (2013) breaker-generation wavenumber limit.
     KGAMMA = SQRT(DWAT * GRAV / SURFACE_TENSION)
@@ -177,8 +184,25 @@ CONTAINS
     TAUNWX = 0.0
     TAUNWY = 0.0
     CHARN  = 0.0
+    SWIND  = 0.0
+    DWIND  = 0.0
     SBGEN  = 0.0
-    D      = 0.0
+
+    ! Kudryavtsev et al. (2005) direct wind input in the short-gravity range.
+    DO IK = 1, NK
+      DO ITH = 1, NTH
+        IS = ITH + (IK-1) * NTH
+        KJ = WN2(IS)
+        IF (KJ .LT. KGAMMA) THEN
+          CJ = SIG(IK) / KJ
+          COSPHI = ECOS(IS)*COS(WINDDIR) + ESIN(IS)*SIN(WINDDIR)
+          CBETA = 1.5 * DAIR / DWAT * ( LOG(PI/(KJ*Z0))/KAPPA - CJ/USTAR )
+          BETA = CBETA * (USTAR/CJ)**2 * COSPHI * ABS(COSPHI)
+          DWIND(IS) = BETA * SIG(IK)
+          SWIND(IS) = DWIND(IS) * A(IS)
+        END IF
+      END DO
+    END DO
 
     ! Integrate over lower-wavenumber parent waves. DSII is the absolute
     ! intrinsic-frequency interval, and the resulting input is isotropic in
@@ -208,7 +232,8 @@ CONTAINS
       END DO
     END DO
 
-    S = SBGEN
+    S = SWIND + SBGEN
+    D = DWIND
 
   END SUBROUTINE W3SINGC
 
