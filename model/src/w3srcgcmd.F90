@@ -35,6 +35,7 @@ MODULE W3SRCGCMD
   !/    20-Nov-2026 : Add short-gravity wave-breaking dissipation.               (P. Pujari)
   !/    24-Nov-2026 : Add breaker-generated freely propagating short-wave input. (P. Pujari)
   !/    26-Nov-2026 : Add direct wind input for short gravity waves.             (P. Pujari)
+  !/    26-Nov-2026 : Add parasitic-capillary generation source.                 (P. Pujari)
   !/
   !/    Copyright 2009 National Weather Service (NWS),
   !/       National Oceanic and Atmospheric Administration.  All rights
@@ -80,6 +81,10 @@ MODULE W3SRCGCMD
   !      Parent-wave growth follows the Kudryavtsev et al. (2005)
   !      beta formulation using U10DIR, and the generated source is
   !      isotropic in target direction.
+  !
+  !      W3SINGC also implements Yurovskaya et al. (2013)
+  !      parasitic-capillary generation from same-direction parent
+  !      saturation spectra.
   !
   !      Molecular viscous and short-gravity wave-breaking dissipation are
   !      implemented in W3SDSGC.
@@ -152,12 +157,14 @@ CONTAINS
 
   END SUBROUTINE W3SPRGC
 
-  !> @brief Calculate direct wind and breaker-generated short-wave input.
+  !> @brief Calculate direct, breaker-generated, and parasitic-capillary input.
   !> @details Direct Kudryavtsev et al. (2005) wind input applies for k < k_gamma. The Yurovskaya
   !>  et al. (2013) nonlocal generation source uses the same wind growth rate, beta.
   !>  Parent waves satisfy k_j < min(k_i/10,k_b), where k_b=k_gamma/4.
   !>  The Kudryavtsev et al. (2005) beta uses the actual wind direction WINDDIR=U10DIR. The parent
   !>  integral is applied identically to every target direction, and D_bgen=0.
+  !>  Parasitic-capillary input uses same-direction mapped parent saturation and
+  !>  has zero local diagonal derivative.
   SUBROUTINE W3SINGC (A, CG, WN2, UABS, USTAR, WINDDIR, Z0, CD, DAIR, &
        TAUWX, TAUWY, TAUNWX, TAUNWY, CHARN, S, D)
 
@@ -170,14 +177,21 @@ CONTAINS
     REAL, INTENT(IN)  :: A(NSPEC), CG(NK), WN2(NSPEC), UABS, USTAR, WINDDIR, Z0, CD, DAIR
     REAL, INTENT(OUT) :: TAUWX, TAUWY, TAUNWX, TAUNWY, CHARN, S(NSPEC), D(NSPEC)
 
-    INTEGER :: IK, JK, ITH, IS, IST
-    REAL, PARAMETER :: CBGEN = 4.5E-3
+    INTEGER :: IK, JK, ITH, IS, IST, ISLO, ISHI, JLOW
+    REAL, PARAMETER :: CBGEN = 4.5E-3, NGPC = 10.0
+    REAL, PARAMETER :: APC = 2.0E-3, CBAR = 0.03
     REAL :: KGAMMA, KBREAK, KI, KJ, KBM, CJ, COSPHI, CBETA, BETA, BGENINT
-    REAL :: SWIND(NSPEC), DWIND(NSPEC), SBGEN(NSPEC)
+    REAL :: KMIN, KMAX, KPAR, KLO, KHI, WPAR, KPCL, KPCH, XPAR, FPAR
+    REAL :: NPC, ALPHAPC, FPCLO, FPCHI, PHIPC, BLO, BHI, BPAR
+    REAL :: SWIND(NSPEC), DWIND(NSPEC), SBGEN(NSPEC), SPC(NSPEC)
 
     ! Yurovskaya et al. (2013) breaker-generation wavenumber limit.
     KGAMMA = SQRT(DWAT * GRAV / SURFACE_TENSION)
     KBREAK = 0.25 * KGAMMA
+    KPCL = 1.5 * KGAMMA
+    KPCH = KGAMMA**2 / KBREAK
+    KMIN = WN2(1)
+    KMAX = WN2(1 + (NK-1)*NTH)
 
     TAUWX  = 0.0
     TAUWY  = 0.0
@@ -187,6 +201,7 @@ CONTAINS
     SWIND  = 0.0
     DWIND  = 0.0
     SBGEN  = 0.0
+    SPC    = 0.0
 
     ! Kudryavtsev et al. (2005) direct wind input in the short-gravity range.
     DO IK = 1, NK
@@ -232,7 +247,63 @@ CONTAINS
       END DO
     END DO
 
-    S = SWIND + SBGEN
+    ! Yurovskaya et al. (2013) parasitic-capillary generation. The mapped
+    ! parent must lie on the resolved wavenumber grid; no extrapolation is used.
+    DO IK = 1, NK
+      IST = 1 + (IK-1) * NTH
+      KI = WN2(IST)
+      KPAR = KGAMMA**2 / KI
+      JLOW = 0
+
+      IF (KPAR .GE. KMIN .AND. KPAR .LE. KMAX) THEN
+        ! Treat the upper endpoint separately to avoid an NK+1 parent access.
+        IF (KPAR .EQ. KMAX) THEN
+          JLOW = NK
+        ELSE
+          DO JK = 1, NK-1
+            KLO = WN2(1 + (JK-1)*NTH)
+            KHI = WN2(1 + JK*NTH)
+            IF (KPAR .GE. KLO .AND. KPAR .LE. KHI) THEN
+              JLOW = JK
+              WPAR = (LOG(KPAR) - LOG(KLO)) / (LOG(KHI) - LOG(KLO))
+              EXIT
+            END IF
+          END DO
+        END IF
+      END IF
+
+      IF (JLOW .GT. 0) THEN
+        XPAR = KPAR / KGAMMA
+        FPAR = 0.5 * (1.0 + TANH(2.0*LOG(4.0*XPAR)))
+        NPC = NGPC / (1.0 + (NGPC-1.0)*FPAR)
+        ALPHAPC = APC * CBAR**(-1.0/NPC)
+        FPCLO = 0.5 * (1.0 + TANH(2.0*LOG(4.0*KI/KPCL)))
+        FPCHI = 0.5 * (1.0 + TANH(2.0*LOG(4.0*KI/KPCH)))
+        PHIPC = FPCLO - FPCHI
+
+        DO ITH = 1, NTH
+          IS = ITH + (IK-1) * NTH
+          IF (JLOW .EQ. NK) THEN
+            ISLO = ITH + (NK-1)*NTH
+            BPAR = SIG(NK) * WN2(ISLO)**3 * A(ISLO)
+          ELSE
+            ISLO = ITH + (JLOW-1)*NTH
+            ISHI = ITH + JLOW*NTH
+            BLO = SIG(JLOW) * WN2(ISLO)**3 * A(ISLO)
+            BHI = SIG(JLOW+1) * WN2(ISHI)**3 * A(ISHI)
+            BPAR = (1.0-WPAR)*BLO + WPAR*BHI
+          END IF
+
+          ! Guard against a negative numerical parent saturation before
+          ! evaluating the generally non-integer power; BPAR=0 gives SPC=0.
+          IF (BPAR .GT. 0.0) THEN
+            SPC(IS) = PHIPC / KI**3 * BPAR * (BPAR/ALPHAPC)**NPC
+          END IF
+        END DO
+      END IF
+    END DO
+
+    S = SWIND + SBGEN + SPC
     D = DWIND
 
   END SUBROUTINE W3SINGC
